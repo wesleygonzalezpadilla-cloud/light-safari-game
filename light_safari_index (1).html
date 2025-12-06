@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Light Safari – Zoë & Maite</title>
+  <style>
+    :root { --accent:#ffcc00; --bg:#071226 }
+    html, body { margin:0; background:var(--bg); color:#fff; font-family: Inter, Arial }
+    #container { position:relative; width:100%; max-width:480px; margin:0 auto; padding-top:10px }
+    canvas { width:100%; display:block; border-radius:12px; background:#000 }
+    .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center }
+    #intro { background:rgba(0,0,0,0.5) }
+    #start { background:rgba(0,0,0,0.6); display:none }
+    #end { background:rgba(0,0,0,0.85); display:none }
+    .card { background:rgba(0,0,0,0.35); padding:16px; border-radius:14px; backdrop-filter:blur(4px) }
+    button { background:var(--accent); border:0; padding:12px 18px; border-radius:10px; font-weight:bold; cursor:pointer }
+    #qr { width:120px; background:#fff; padding:6px; border-radius:10px }
+    .touch-controls { position:absolute; bottom:20px; left:20px; display:flex; gap:12px }
+    .touch-btn { width:70px; height:70px; border-radius:14px; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; font-size:26px }
+  </style>
+</head>
+<body>
+
+<div id="container">
+  <canvas id="game" width="400" height="700"></canvas>
+
+  <!-- INTRO -->
+  <div id="intro" class="overlay">
+    <img id="introImg" style="max-width:100%; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.6)">
+    <div class="card" style="margin-top:16px">
+      <h1>Zoë & Maite</h1>
+      <p>Vang 25 aapjes om jullie cadeau te ontdekken!</p>
+      <button id="toStart">Start</button>
+    </div>
+  </div>
+
+  <!-- START -->
+  <div id="start" class="overlay">
+    <div class="card">
+      <h1>Welkom 🌟</h1>
+      <p>Klik op Start om jullie safari avontuur te beginnen.</p>
+      <button id="startBtn">Start spel</button>
+      <p style="margin-top:10px; font-size:14px">Scan deze QR-code om op GSM te spelen:</p>
+      <img id="qr" alt="QR Code" />
+    </div>
+  </div>
+
+  <!-- EINDSCHERM -->
+  <div id="end" class="overlay">
+    <div class="card">
+      <h1>🎉 Verrassing! 🎉</h1>
+      <p>Jullie krijgen tickets voor de <b>Light Safari</b>!</p>
+      <img id="endPhoto" style="max-width:100%; border-radius:12px; margin-top:12px">
+    </div>
+  </div>
+
+  <!-- Touch Controls -->
+  <div class="touch-controls">
+    <div id="leftBtn" class="touch-btn">◀</div>
+    <div id="rightBtn" class="touch-btn">▶</div>
+  </div>
+</div>
+
+<script>
+// -------------------- CONFIG --------------------
+const introImg = document.getElementById('introImg');
+introImg.src = 'A_digital_illustration_for_Zoë_and_Maite_invites_t.png';
+const endPhoto = document.getElementById('endPhoto');
+endPhoto.src = 'A_digital_illustration_for_Zoë_and_Maite_invites_t.png';
+
+// -------------------- CANVAS --------------------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let animals = [];
+let score = 0;
+const goal = 25;
+let finished = false;
+let loopStarted = false;
+
+const player = { x:170, y:620, w:60, h:40, speed:6, icon:'🚙' };
+
+const safariAnimals = ['🐒','🦁','🦓','🦒','🐘','🐆'];
+
+// Achtergrond = dezelfde introfoto
+const bgImg = new Image();
+bgImg.src = introImg.src;
+let bgLoaded = false;
+bgImg.onload = () => bgLoaded = true;
+
+// -------------------- FUNCTIONS --------------------
+function spawnAnimal(){
+  const type = safariAnimals[Math.floor(Math.random()*safariAnimals.length)];
+  const speed = type === '🐒' ? 3 + Math.random()*2.5 : 1.5 + Math.random()*1.5;
+
+  animals.push({
+    x: Math.random()*(canvas.width-40),
+    y: -40,
+    size:40,
+    speed,
+    type
+  });
+}
+
+function update(){
+  if (finished) return;
+
+  // movement
+  if (keys['ArrowLeft']) player.x -= player.speed;
+  if (keys['ArrowRight']) player.x += player.speed;
+  player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
+
+  // animals
+  for (let i = animals.length - 1; i >= 0; i--){
+    const a = animals[i];
+    a.y += a.speed;
+
+    if (a.y > canvas.height){ animals.splice(i,1); continue; }
+
+    if (
+      a.x < player.x + player.w &&
+      a.x + a.size > player.x &&
+      a.y + a.size > player.y &&
+      a.y < player.y + player.h
+    ){
+      if (a.type === '🐒') score++;
+      animals.splice(i,1);
+      if (score >= goal){ finished = true; document.getElementById('end').style.display='flex'; }
+    }
+  }
+
+  if (Math.random() < 0.03) spawnAnimal();
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if (bgLoaded) ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
+
+  animals.forEach(a =>{
+    ctx.font = a.size + 'px serif';
+    ctx.fillText(a.type, a.x, a.y + a.size);
+  });
+
+  ctx.font = '46px serif';
+  ctx.fillText(player.icon, player.x + 8, player.y + 36);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`Aapjes: ${score}/${goal}`, 10, 30);
+}
+
+function gameLoop(){ update(); draw(); if (!finished) requestAnimationFrame(gameLoop); }
+
+// -------------------- INPUT --------------------
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+// Touch
+leftBtn.addEventListener('click', ()=> player.x = Math.max(0, player.x - 50));
+rightBtn.addEventListener('click', ()=> player.x = Math.min(canvas.width - player.w, player.x + 50));
+
+// -------------------- UI FLOW --------------------
+document.getElementById('toStart').onclick = () =>{
+  intro.style.display = 'none';
+  start.style.display = 'flex';
+
+  // QR voor GitHub Pages URL
+  const url = location.href;
+  document.getElementById('qr').src =
+    `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(url)}`;
+};
+
+document.getElementById('startBtn').onclick = () =>{
+  start.style.display = 'none';
+  if (!loopStarted){ loopStarted = true; requestAnimationFrame(gameLoop); }
+};
+</script>
+</body>
+</html>
